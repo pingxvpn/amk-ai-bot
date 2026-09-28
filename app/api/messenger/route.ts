@@ -1,3 +1,4 @@
+export const maxDuration = 30; // စက္ကန့် ၃၀ အထိ အလုပ်လုပ်ခွင့်ပြုသည်
 import { NextRequest } from 'next/server';
 import { STORE_KNOWLEDGE_BASE } from '@/lib/knowledge';
 
@@ -28,7 +29,9 @@ export async function POST(request: NextRequest) {
       for (const entry of body.entry || []) {
         const event = entry.messaging?.[0];
         if (!event) continue;
-
+if (message.is_echo) {
+  return new Response('ECHO_SKIPPED', { status: 200 });
+}
         const senderId = event.sender?.id;
         const message = event.message;
 
