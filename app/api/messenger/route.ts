@@ -1,6 +1,8 @@
-export const maxDuration = 30; // စက္ကန့် ၃၀ အထိ အလုပ်လုပ်ခွင့်ပြုသည်
 import { NextRequest } from 'next/server';
 import { STORE_KNOWLEDGE_BASE } from '@/lib/knowledge';
+
+// Vercel Serverless Function ကို အချိန်ပိုပေးခြင်း
+export const maxDuration = 30;
 
 // 1. Meta Webhook Verification (GET)
 export async function GET(request: NextRequest) {
@@ -10,7 +12,6 @@ export async function GET(request: NextRequest) {
   const challenge = searchParams.get('hub.challenge');
 
   if (mode === 'subscribe' && token === process.env.FB_VERIFY_TOKEN) {
-    console.log('WEBHOOK_VERIFIED_SUCCESSFULLY');
     return new Response(challenge, {
       status: 200,
       headers: { 'Content-Type': 'text/plain' },
@@ -29,9 +30,12 @@ export async function POST(request: NextRequest) {
       for (const entry of body.entry || []) {
         const event = entry.messaging?.[0];
         if (!event) continue;
-if (message.is_echo) {
-  return new Response('ECHO_SKIPPED', { status: 200 });
-}
+
+        // Bot ပို့သော စာဖြစ်ပါက မဖတ်ဘဲ ကျော်မည်
+        if (event.message?.is_echo) {
+          continue;
+        }
+
         const senderId = event.sender?.id;
         const message = event.message;
 
@@ -39,13 +43,13 @@ if (message.is_echo) {
           let userText = message.text || '';
           let imageUrl = '';
 
-          // ပုံပါလာပါက ပုံကိုပါ AI ဆီ ပို့ရန် စစ်ဆေးခြင်း
+          // ပုံပါလာပါက စစ်ဆေးခြင်း
           if (message.attachments?.[0]?.type === 'image') {
-            imageUrl = message.attachments[0].payload.url;
+            imageUrl = message.attachments[0].payload?.url || '';
             userText = userText || 'ဒီပစ္စည်းပုံလေး ဈေးနှုန်းနဲ့ အချက်အလက် သိချင်ပါတယ်ရှင်။';
           }
 
-          // OpenRouter Gemini Flash ဆီ အဖြေတောင်းယူခြင်း
+          // OpenRouter Gemini 2.5 Flash ဆီ မေးခြင်း
           const aiAnswer = await askAI(userText, imageUrl);
 
           // Facebook Graph API သို့ အကြောင်းပြန်စာ ပို့ခြင်း
