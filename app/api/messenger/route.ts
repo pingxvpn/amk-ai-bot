@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { STORE_KNOWLEDGE_BASE } from '@/lib/knowledge';
 
-// Vercel Serverless Function ကို အချိန်ပိုပေးခြင်း
 export const maxDuration = 30;
 
 // 1. Meta Webhook Verification (GET)
@@ -43,14 +42,16 @@ export async function POST(request: NextRequest) {
           let userText = message.text || '';
           let imageUrl = '';
 
-          // ပုံပါလာပါက စစ်ဆေးခြင်း
           if (message.attachments?.[0]?.type === 'image') {
             imageUrl = message.attachments[0].payload?.url || '';
             userText = userText || 'ဒီပစ္စည်းပုံလေး ဈေးနှုန်းနဲ့ အချက်အလက် သိချင်ပါတယ်ရှင်။';
           }
 
-          // OpenRouter Gemini 2.5 Flash ဆီ မေးခြင်း
+          console.log('👉 1. User Message Received:', userText);
+
+          // AI ဆီ အဖြေတောင်းခြင်း
           const aiAnswer = await askAI(userText, imageUrl);
+          console.log('👉 2. AI Answer Generated:', aiAnswer);
 
           // Facebook Graph API သို့ အကြောင်းပြန်စာ ပို့ခြင်း
           await replyToFacebook(senderId, aiAnswer);
@@ -100,27 +101,35 @@ If customer wants to buy, ask for Name, Phone, and Delivery Address.`,
     });
 
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || 'မင်္ဂလာပါရှင်၊ လူကြီးမင်း မေးမြန်းချက်အတွက် ခေတ္တစောင့်ဆိုင်းပေးပါရှင်။';
+    return data.choices?.[0]?.message?.content || 'မင်္ဂလာပါရှင်၊ Online shopping AMK မှ ကြိုဆိုပါတယ်ရှင့်။ ဘာများကူညီပေးရမလဲရှင့်။';
   } catch (err) {
     console.error('AI Error:', err);
     return 'မင်္ဂလာပါရှင်၊ စနစ်ချို့ယွင်းနေပါသဖြင့် ခေတ္တစောင့်ဆိုင်းပြီးမှ ထပ်မံမေးမြန်းပေးပါရှင်။';
   }
 }
 
-// Send Reply via Facebook Graph API
+// Send Reply via Facebook Graph API with Debugging
 async function replyToFacebook(recipientId: string, text: string) {
   try {
-    await fetch(
+    // စာလုံးရေ ၂၀၀၀ ထက်မကျော်စေရန် ကာကွယ်ခြင်း
+    const safeText = text.slice(0, 1900);
+    console.log('👉 3. Sending reply to Facebook recipient:', recipientId);
+
+    const res = await fetch(
       `https://graph.facebook.com/v21.0/me/messages?access_token=${process.env.FB_PAGE_ACCESS_TOKEN}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recipient: { id: recipientId },
-          message: { text },
+          messaging_type: 'RESPONSE', // Facebook စည်းမျဉ်းအရ မဖြစ်မနေ လိုအပ်သည်
+          message: { text: safeText },
         }),
       }
     );
+
+    const data = await res.json();
+    console.log('👉 4. Facebook API Response Result:', JSON.stringify(data));
   } catch (err) {
     console.error('FB Send Error:', err);
   }
